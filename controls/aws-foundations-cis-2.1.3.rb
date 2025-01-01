@@ -113,7 +113,15 @@ with 3rd Party tools that perform similar processes and protection. "
 
   only_if('Amazon Macie unavailable in GovCloud; please manually review AWS account to determine if a third party data management tool is present') { !aws_sts_caller_identity.govcloud? }
 
-  describe 'Manual Review' do
-    skip 'Manual review of Amazon Macie configuration in the AWS console is required'
+  expected_monitored_buckets = aws_s3_buckets.bucket_names - input('exempt_buckets')
+
+  unmonitored_buckets = expected_monitored_buckets.filter { |bucket| aws_macie.monitoring?(bucket) }
+
+  fail_message = "Unmonitored buckets:\n\t- #{unmonitored_buckets.join("\n\t- ")}"
+
+  describe "AWS Macie" do
+    it "should be monitoring all S3 buckets" do
+      expect(unmonitored_buckets).to be_empty, fail_message
+    end
   end
 end
